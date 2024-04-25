@@ -11,3 +11,6 @@ langStrings:
   -
     value: 'Sample XLIFF'
     unitId: sample_xliff
+  -
+    value: 'Import Language Package'
+    unitId: import_language_package
