@@ -16,4 +16,4 @@ langStrings:
     unitId: import_language_package
   -
     value: 'The text will not translate automatically. You will either have to import translations or translate within the system.'
-    unitId: translate_text_manually
+    unitId: translate_text_manually_note
