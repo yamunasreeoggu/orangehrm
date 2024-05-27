@@ -20,6 +20,8 @@ namespace OrangeHRM\Admin\Service;
 
 use DOMDocument;
 use Exception;
+use MessageFormatter;
+use IntlException;
 use OrangeHRM\Admin\Dao\LocalizationDao;
 use OrangeHRM\Admin\Dto\I18NGroupSearchFilterParams;
 use OrangeHRM\Admin\Dto\I18NLanguageSearchFilterParams;
@@ -34,6 +36,7 @@ use OrangeHRM\Entity\I18NLanguage;
 use OrangeHRM\Entity\I18NTranslation;
 use OrangeHRM\Framework\Services;
 use OrangeHRM\I18N\Service\I18NService;
+use Symfony\Component\Translation\Util\XliffUtils;
 
 class LocalizationService
 {
@@ -41,6 +44,8 @@ class LocalizationService
     use DateTimeHelperTrait;
     use ConfigServiceTrait;
     use ServiceContainerTrait;
+
+    public const CACHE_KEY_SUFFIX = 'admin.i18LanguageStringValidationErrors';
 
     /**
      * @var LocalizationDao|null
@@ -230,23 +235,25 @@ class LocalizationService
         $root->setAttribute('srcLang', 'en_US');
         $root->setAttribute('trgLang', $language->getCode());
         $root->setAttribute('xmlns', 'urn:oasis:names:tc:xliff:document:2.0');
-        $root->setAttribute('date', @date('Y-m-d\TH:i:s\Z'));
 
         $file = $xml->createElement('file');
+        $file->setAttribute('id', 1);
         $root->appendChild($file);
 
-        foreach ($i18nGroups as  $i18nGroup) {
+        foreach ($i18nGroups as $i18nGroup) {
             if ($i18nGroup instanceof I18NGroup) {
                 $i18NTargetLangStringSearchFilterParams
                     = new I18NTranslationSearchFilterParams();
                 $i18NTargetLangStringSearchFilterParams->setLanguageId($language->getId());
                 $i18NTargetLangStringSearchFilterParams->setLimit(0);
                 $i18NTargetLangStringSearchFilterParams->setGroupId($i18nGroup->getId());
-                $translations = $this->localizationDao->getNormalizedTranslationsForExport($i18NTargetLangStringSearchFilterParams);
+                $translations = $this->localizationDao->getNormalizedTranslationsForExport(
+                    $i18NTargetLangStringSearchFilterParams
+                );
 
                 $group = $xml->createElement('group');
                 $file->appendChild($group);
-                $group->setAttribute('name', $i18nGroup->getName());
+                $group->setAttribute('id', $i18nGroup->getName());
 
 
                 foreach ($translations as $translation) {
@@ -269,5 +276,164 @@ class LocalizationService
             }
         }
         return $xml;
+    }
+
+    public function validateXliffFile(string $content, ?string $file = null): array
+    {
+        $errors = [];
+
+        // Avoid: Warning DOMDocument::loadXML(): Empty string supplied as input
+        if ('' === trim($content)) {
+            return ['file' => $file, 'isValid' => true, 'messages' => $errors];
+        }
+
+        $internal = libxml_use_internal_errors(true);
+
+        $document = new \DOMDocument();
+        $document->loadXML($content);
+
+        if (null !== $targetLanguage = $this->getTargetLanguageFromFile($document)) {
+            // Normalize locale: handle both hyphen and underscore variations, and make it case-insensitive
+            $normalizedLocalePattern = sprintf(
+                '(?i:%s|%s)',
+                preg_quote($targetLanguage, '/'),
+                preg_quote(str_replace('_', '-', $targetLanguage), '/')
+            );
+            // strict file names require translation files to be named 'i18n-trgLang.xlf' or 'i18n-trgLang.xliff'
+            $expectedFilenamePattern = sprintf('/^i18n\-(?:%s)\.(?:xlf|xliff)$/i', $normalizedLocalePattern);
+
+            if ($file && 0 === preg_match($expectedFilenamePattern, basename($file))) {
+                $errors[] = [
+                    'line' => -1,
+                    'column' => -1,
+                    'message' => sprintf(
+                        'There is a mismatch between the language included in the file name ("%s") and the "%s" value used in the "trgLang" attribute of the file.',
+                        basename($file),
+                        $targetLanguage
+                    ),
+                ];
+            }
+        }
+
+        foreach (XliffUtils::validateSchema($document) as $xmlError) {
+            $errors[] = [
+                'line' => $xmlError['line'],
+                'column' => $xmlError['column'],
+                'message' => $xmlError['message'],
+            ];
+        }
+
+        libxml_clear_errors();
+        libxml_use_internal_errors($internal);
+
+        return ['file' => $file, 'isValid' => 0 === \count($errors), 'messages' => $errors];
+    }
+
+    private function getTargetLanguageFromFile(\DOMDocument $xliffContents): ?string
+    {
+        $xliffTags = $xliffContents->getElementsByTagName('xliff');
+        if ($xliffTags->length > 0) {
+            $xliffTag = $xliffTags->item(0);
+            if ($xliffTag && $xliffTag->hasAttribute('trgLang')) {
+                return $xliffTag->getAttribute('trgLang');
+            }
+        }
+
+        return null;
+    }
+
+    public function validateXliffLanguageStrings(array $unitElement): array
+    {
+        // Initialize an array to store validation errors
+        $errors = [];
+        $locale = "en_US";
+
+        // Validate each <unit> element
+        $unitId = $unitElement['unitId'];
+        $source = $unitElement['source'];
+        $target = $unitElement['target'];
+
+        // Initialize an array to store errors for this unit
+        $unitErrors = "";
+
+        // Define patterns for matching placeholders, plural forms, and select expressions
+        $placeholderPattern = '/{(\w+)}/';
+        $pluralPattern = '/\s?(\w+)\s?,\s?plural/';
+        $selectPattern = '/\s?(\w+)\s?,\s?select/';
+
+        // Match placeholders between source and target strings
+        preg_match_all($placeholderPattern, $source, $placeholdersSource);
+        preg_match_all($placeholderPattern, $target, $placeholdersTarget);
+
+        $capturedPlaceholdersSource = $placeholdersSource[1];
+        $capturedPlaceholdersTarget = $placeholdersTarget[1];
+
+        // Compare placeholders between source and target strings
+        if ($capturedPlaceholdersSource !== $capturedPlaceholdersTarget) {
+            $unitErrors .= "Mismatch found between placeholders. Source: [" . implode(
+                ', ',
+                $capturedPlaceholdersSource
+            ) . "] & Target: [" . implode(', ', $capturedPlaceholdersTarget) . "]";
+        }
+
+        // Match plural forms between source and target strings
+        preg_match_all($pluralPattern, $source, $pluralsSource);
+        preg_match_all($pluralPattern, $target, $pluralsTarget);
+
+        $capturedPluralsSource = $pluralsSource[1];
+        $capturedPluralsTarget = $pluralsTarget[1];
+
+        // Compare plural forms between source and target strings
+        if ($capturedPluralsSource !== $capturedPluralsTarget) {
+            $unitErrors .= "Mismatch found between plural forms. Source: [" . implode(
+                ', ',
+                $capturedPluralsSource
+            ) . "] & Target: [" . implode(', ', $capturedPluralsTarget) . "].";
+        }
+
+        // Match select expressions between source and target strings
+        preg_match_all($selectPattern, $source, $selectsSource);
+        preg_match_all($selectPattern, $target, $selectsTarget);
+
+        $capturedSelectsSource = $selectsSource[1];
+        $capturedSelectsTarget = $selectsTarget[1];
+
+        // Compare select expressions between source and target strings
+        if ($capturedSelectsSource !== $capturedSelectsTarget) {
+            $unitErrors .= "Mismatch found between select expressions. Source: [" . implode(
+                ', ',
+                $capturedSelectsSource
+            ) . "] & Target: [" . implode(', ', $capturedSelectsTarget) . "]";
+        }
+
+        try {
+            $fmt = new MessageFormatter($locale, $target);
+        } catch (IntlException $e) {
+            $unitErrors .= $e->getMessage();
+        }
+
+        // Store errors for this unit
+        if (!empty($unitErrors)) {
+            // Add a space after a full stop in error messages
+            $unitErrors = preg_replace('/\.(?!\s|$)/', '. ', $unitErrors);
+
+            $errors = [
+                'unitId' => $unitId,
+                'source' => $source,
+                'target' => $target,
+                'error' => $unitErrors
+            ];
+        }
+
+        return $errors;
+    }
+
+    /**
+     * @param int $languageId
+     * @return string
+     */
+    public function generateCacheKey(int $languageId): string
+    {
+        return self::CACHE_KEY_SUFFIX . ".$languageId";
     }
 }

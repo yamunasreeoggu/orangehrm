@@ -18,15 +18,27 @@
 
 namespace OrangeHRM\Installer\Migration\V5_7_0;
 
+use Doctrine\DBAL\Exception;
 use OrangeHRM\Installer\Util\V1\AbstractMigration;
+use OrangeHRM\Installer\Util\V1\LangStringHelper;
 
 class Migration extends AbstractMigration
 {
+    protected ?LangStringHelper $langStringHelper = null;
+
     /**
      * @inheritDoc
+     * @throws Exception
      */
     public function up(): void
     {
+        $this->deleteLangStringTranslationByLangStringUnitId('translate_text_manually', $this->getLangHelper()->getGroupIdByName('admin'));
+
+        $this->getLangHelper()->deleteLangStringByUnitId(
+            'translate_text_manually',
+            $this->getLangHelper()->getGroupIdByName('admin')
+        );
+
         $localizationDataGroupId = $this->getDataGroupHelper()->getDataGroupIdByName(
             'apiv2_admin_localization_languages'
         );
@@ -44,6 +56,15 @@ class Migration extends AbstractMigration
             ->setParameter('userRoleId', $this->getDataGroupHelper()->getUserRoleIdByName('Admin'))
             ->setParameter('value', 1)
             ->executeQuery();
+
+        $groups = ['admin'];
+        foreach ($groups as $group) {
+            $this->getLangStringHelper()->insertOrUpdateLangStrings(__DIR__, $group);
+        }
+
+        $this->updateLangStringVersion($this->getVersion());
+
+        $this->getDataGroupHelper()->insertApiPermissions(__DIR__ . '/permission/api.yaml');
     }
 
     /**
@@ -52,5 +73,47 @@ class Migration extends AbstractMigration
     public function getVersion(): string
     {
         return '5.7.0';
+    }
+
+    private function getLangStringHelper(): LangStringHelper
+    {
+        if (is_null($this->langStringHelper)) {
+            $this->langStringHelper = new LangStringHelper(
+                $this->getConnection()
+            );
+        }
+        return $this->langStringHelper;
+    }
+
+    /**
+     * @throws Exception
+     */
+    private function updateLangStringVersion(string $version): void
+    {
+        $qb = $this->createQueryBuilder()
+            ->update('ohrm_i18n_lang_string', 'lang_string')
+            ->set('lang_string.version', ':version')
+            ->setParameter('version', $version);
+        $qb->andWhere($qb->expr()->isNull('lang_string.version'))
+            ->executeStatement();
+    }
+
+    private function deleteLangStringTranslationByLangStringUnitId(string $unitId, int $groupId): void
+    {
+        $id = $this->getConnection()->createQueryBuilder()
+            ->select('id')
+            ->from('ohrm_i18n_lang_string', 'langString')
+            ->andWhere('langString.unit_id = :unitId')
+            ->setParameter('unitId', $unitId)
+            ->andWhere('langString.group_id = :groupId')
+            ->setParameter('groupId', $groupId)
+            ->executeQuery()
+            ->fetchOne();
+
+        $this->createQueryBuilder()
+            ->delete('ohrm_i18n_translate')
+            ->andWhere('ohrm_i18n_translate.lang_string_id = :id')
+            ->setParameter('id', $id)
+            ->executeQuery();
     }
 }
