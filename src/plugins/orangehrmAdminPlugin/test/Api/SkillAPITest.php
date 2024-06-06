@@ -1,26 +1,9 @@
 <?php
-/**
- * OrangeHRM is a comprehensive Human Resource Management (HRM) System that captures
- * all the essential functionalities required for any enterprise.
- * Copyright (C) 2006 OrangeHRM Inc., http://www.orangehrm.com
- *
- * OrangeHRM is free software: you can redistribute it and/or modify it under the terms of
- * the GNU General Public License as published by the Free Software Foundation, either
- * version 3 of the License, or (at your option) any later version.
- *
- * OrangeHRM is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with OrangeHRM.
- * If not, see <https://www.gnu.org/licenses/>.
- */
 
 namespace OrangeHRM\Tests\Admin\Api;
 
-use OrangeHRM\Admin\Api\PayGradeAPI;
-use OrangeHRM\Entity\PayGrade;
-use OrangeHRM\Entity\PayGradeCurrency;
+use OrangeHRM\Admin\Api\SkillAPI;
+use OrangeHRM\Entity\Skill;
 use OrangeHRM\Framework\Services;
 use OrangeHRM\Tests\Util\EndpointIntegrationTestCase;
 use OrangeHRM\Tests\Util\Integration\TestCaseParams;
@@ -30,12 +13,12 @@ use OrangeHRM\Tests\Util\TestDataService;
  * @group Admin
  * @group APIv2
  */
-class PayGradeAPITest extends EndpointIntegrationTestCase
+class SkillAPITest extends EndpointIntegrationTestCase
 {
     protected function setUp(): void
     {
-        TestDataService::truncateSpecificTables([PayGrade::class, PayGradeCurrency::class]);
-        $this->populateFixtures('PayGradeAPI.yml');
+        TestDataService::truncateSpecificTables([Skill::class]);
+        $this->populateFixtures('SkillAPI.yml');
     }
 
     /**
@@ -44,14 +27,13 @@ class PayGradeAPITest extends EndpointIntegrationTestCase
     public function testGetAll(TestCaseParams $testCaseParams): void
     {
         $this->createKernelWithMockServices([Services::AUTH_USER => $this->getMockAuthUser($testCaseParams)]);
-        $this->registerServices($testCaseParams);
-        $api = $this->getApiEndpointMock(PayGradeAPI::class, $testCaseParams);
+        $api = $this->getApiEndpointMock(SkillAPI::class, $testCaseParams);
         $this->assertValidTestCase($api, 'getAll', $testCaseParams);
     }
 
     public function dataProviderForTestGetAll(): array
     {
-        return $this->getTestCases('PayGradeAPITestCases.yml', 'GetAll');
+        return $this->getTestCases('SkillAPITestCases.yml', 'GetAll');
     }
 
     /**
@@ -60,14 +42,13 @@ class PayGradeAPITest extends EndpointIntegrationTestCase
     public function testGetOne(TestCaseParams $testCaseParams): void
     {
         $this->createKernelWithMockServices([Services::AUTH_USER => $this->getMockAuthUser($testCaseParams)]);
-        $this->registerServices($testCaseParams);
-        $api = $this->getApiEndpointMock(PayGradeAPI::class, $testCaseParams);
+        $api = $this->getApiEndpointMock(SkillAPI::class, $testCaseParams);
         $this->assertValidTestCase($api, 'getOne', $testCaseParams);
     }
 
     public function dataProviderForTestGetOne(): array
     {
-        return $this->getTestCases('PayGradeAPITestCases.yml', 'GetOne');
+        return $this->getTestCases('SkillAPITestCases.yml', 'GetOne');
     }
 
     /**
@@ -76,14 +57,13 @@ class PayGradeAPITest extends EndpointIntegrationTestCase
     public function testCreate(TestCaseParams $testCaseParams): void
     {
         $this->createKernelWithMockServices([Services::AUTH_USER => $this->getMockAuthUser($testCaseParams)]);
-        $this->registerServices($testCaseParams);
-        $api = $this->getApiEndpointMock(PayGradeAPI::class, $testCaseParams);
+        $api = $this->getApiEndpointMock(SkillAPI::class, $testCaseParams);
         $this->assertValidTestCase($api, 'create', $testCaseParams);
     }
 
     public function dataProviderForTestCreate(): array
     {
-        return $this->getTestCases('PayGradeAPITestCases.yml', 'Create');
+        return $this->getTestCases('SkillAPITestCases.yml', 'Create');
     }
 
     /**
@@ -92,14 +72,13 @@ class PayGradeAPITest extends EndpointIntegrationTestCase
     public function testUpdate(TestCaseParams $testCaseParams): void
     {
         $this->createKernelWithMockServices([Services::AUTH_USER => $this->getMockAuthUser($testCaseParams)]);
-        $this->registerServices($testCaseParams);
-        $api = $this->getApiEndpointMock(PayGradeAPI::class, $testCaseParams);
+        $api = $this->getApiEndpointMock(SkillAPI::class, $testCaseParams);
         $this->assertValidTestCase($api, 'update', $testCaseParams);
     }
 
     public function dataProviderForTestUpdate(): array
     {
-        return $this->getTestCases('PayGradeAPITestCases.yml', 'Update');
+        return $this->getTestCases('SkillAPITestCases.yml', 'Update');
     }
 
     /**
@@ -108,13 +87,12 @@ class PayGradeAPITest extends EndpointIntegrationTestCase
     public function testDelete(TestCaseParams $testCaseParams): void
     {
         $this->createKernelWithMockServices([Services::AUTH_USER => $this->getMockAuthUser($testCaseParams)]);
-        $this->registerServices($testCaseParams);
-        $api = $this->getApiEndpointMock(PayGradeAPI::class, $testCaseParams);
+        $api = $this->getApiEndpointMock(SkillAPI::class, $testCaseParams);
         $this->assertValidTestCase($api, 'delete', $testCaseParams);
     }
 
     public function dataProviderForTestDelete(): array
     {
-        return $this->getTestCases('PayGradeAPITestCases.yml', 'Delete');
+        return $this->getTestCases('SkillAPITestCases.yml', 'Delete');
     }
 }
