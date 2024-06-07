@@ -13,7 +13,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: "${ORANGEHRM_REPO}"
+                git branch: "${params.VERSION}", url: "${ORANGEHRM_REPO}"
             }
         }
 
