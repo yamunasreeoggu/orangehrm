@@ -10,7 +10,7 @@ systemctl start httpd
 status_check
 
 echo enable Apche Server
-systemctl enable httpd
+systemctl enable httpdcat arch
 status_check
 
 echo status of Apche Server

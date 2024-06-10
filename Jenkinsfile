@@ -19,7 +19,6 @@ pipeline {
 
         stage('Build') {
             steps {
-                // sh 'composer install'
                 dir('devTools/core') {
                   sh "composer install"
                 }
@@ -34,9 +33,7 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                //withCredentials([sshUserPrivateKey(credentialsId: 'SSH_KEY', keyFileVariable: 'SSH_KEY')]) {
-                  //  sh "scp -o StrictHostKeyChecking=no orangehrm-${params.VERSION}.zip ec2-user@172.31.56.235:/var/www/html/"
-                  sshagent(['SSH_KEY']) {
+                sshagent(['SSH_KEY']) {
                       sh "scp  -o StrictHostKeyChecking=no orangehrm-${params.VERSION}.zip ec2-user@${EC2_INSTANCE}:/tmp/"
                       sh "ssh  -o StrictHostKeyChecking=no ec2-user@${EC2_INSTANCE} unzip -o /tmp/orangehrm-${params.VERSION} -d /var/www/html/orangehrm-${params.VERSION}"
                     }
