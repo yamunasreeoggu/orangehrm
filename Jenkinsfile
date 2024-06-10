@@ -6,7 +6,7 @@ pipeline {
     }
 
     environment {
-        ORANGEHRM_REPO = 'https://github.com/orangehrm/orangehrm.git'
+        ORANGEHRM_REPO = 'https://github.com/yamunasreeoggu/orangehrm.git'
         EC2_INSTANCE = '172.31.53.214'
     }
 
