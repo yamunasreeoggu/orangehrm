@@ -13,11 +13,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                script {
-                    // Construct a valid refspec
-                    def refspec = "+refs/heads/${params.VERSION}:refs/remotes/origin/${params.VERSION}"
-                    git branch: refspec, url: "${ORANGEHRM_REPO}"
-                }
+                git credentialsId: 'git', url: "${ORANGEHRM_REPO}", branch: "${params.VERSION}"
             }
         }
 
