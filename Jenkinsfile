@@ -6,14 +6,14 @@ pipeline {
     }
 
     environment {
-        ORANGEHRM_REPO = 'https://github.com/yamunasreeoggu/orangehrm.git'
+        ORANGEHRM_REPO = 'https://github.com/orangehrm/orangehrm.git'
         EC2_INSTANCE = '172.31.53.214'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git credentialsId: 'git', url: "${ORANGEHRM_REPO}", branch: "${params.VERSION}"
+                git branch: "${params.VERSION}", url: "${ORANGEHRM_REPO}"
             }
         }
 
@@ -34,10 +34,11 @@ pipeline {
         stage('Deploy') {
             steps {
                 sshagent(['SSH_KEY']) {
-                    sh "scp -o StrictHostKeyChecking=no orangehrm-${params.VERSION}.zip ec2-user@${EC2_INSTANCE}:/tmp/"
-                    sh "ssh -o StrictHostKeyChecking=no ec2-user@${EC2_INSTANCE} unzip -o /tmp/orangehrm-${params.VERSION} -d /var/www/html/orangehrm-${params.VERSION}"
+                  sh "scp  -o StrictHostKeyChecking=no orangehrm-${params.VERSION}.zip ec2-user@${EC2_INSTANCE}:/tmp/"
+                  sh "ssh  -o StrictHostKeyChecking=no ec2-user@${EC2_INSTANCE} unzip -o /tmp/orangehrm-${params.VERSION} -d /var/www/html/orangehrm-${params.VERSION}"
                 }
             }
         }
     }
 }
+
