@@ -79,6 +79,42 @@ pipeline {
         }
     }
 }
+-------------------------------------------------------------------------
+ZULIP
+
+pipeline {
+    agent any
+
+    environment {
+        ZULIP_REPO = 'https://github.com/zulip/zulip.git'
+        EC2_INSTANCE = '172.31.80.189'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo "Checkout"
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo "Build"
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sshagent(['SSH_KEY_ZULIP']) {
+                  sh "ssh  -o StrictHostKeyChecking=no"
+                  sh "curl -fLO https://download.zulip.com/server/zulip-server-latest.tar.gz"
+                  sh "tar -xf zulip-server-latest.tar.gz"
+                  sh "sudo su"
+                  sh "./zulip-server-*/scripts/setup/install --certbot --email=yamunasree321@gmail.com --hostname=zulip.yamunadevops.online"
+                }
+            }
+        }
     }
 }
+
 
